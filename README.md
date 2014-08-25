@@ -1,4 +1,4 @@
 miners
 ======
 
-a mini miners game .JavaScript.
+a mini miners game use JavaScript.

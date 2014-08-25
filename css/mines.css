@@ -1,0 +1,8 @@
+#mines{
+    font-size: 18px;
+    line-height: 40px;
+    margin:0 auto;
+    position:absolute; top:10px; left:25%;
+    text-align: center;
+    vertical-align: middle;
+}

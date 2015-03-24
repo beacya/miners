@@ -1,4 +1,4 @@
-miners
+js扫雷
 ======
-
-a mini miners game use JavaScript.
+ 
+DOM写的JS扫雷小游戏。 

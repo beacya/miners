@@ -1,15 +1,23 @@
 /**
  * Created by sunbin on 14-8-7.
  */
-var minesNum = 0;//À×Êı
-var colNum = 0;//ÁĞ
-var rowNum = 0;//ĞĞ
-var aMines;
-var pointNum = 0;//ËùÓĞ·½¿é
 
-//³õÊ¼»¯ ¸ù¾İlevelÖµÉè¶¨µÈ¼¶
+var minesNum  = 0;//é›·æ•°
+var leaveNum  = 0;//å‰©ä½™é›·æ•°
+var colNum    = 0;//åˆ—
+var rowNum    = 0;//è¡Œ
+var aMines    = [];//å­˜æ”¾é›·ä¿¡æ¯æ•°ç»„
+var aPoints   = {};//åæ ‡
+var pointNum  = 0;//æ‰€æœ‰æ–¹å—
+var minesTmpNum = 0;
+var oMines;       //é›·åŒºå—å¯¹è±¡
+var oAllMines;    //æ‰€ä»¥é›·å¯¹è±¡
+var timer;
+//åˆå§‹åŒ– æ ¹æ®levelå€¼è®¾å®šéš¾åº¦ç­‰çº§
 function initMines(level){
-
+    minesNum = 0;
+    aMines = [];
+    aPoints = {}
     if(level == 1){
         minesNum = 10;
         colNum = 9;
@@ -23,89 +31,179 @@ function initMines(level){
         colNum = 16;
         rowNum = 20;
     }
-
+    oNum.innerHTML = minesNum;
+    leaveNum = minesNum;
     pointNum = colNum * rowNum;
-    aMines = createMines();
+    createMines();
     randMines();
-    //console.log(aMines);
-
+    timeCounter();
 }
 
-//Éú³ÉµØÀ×
+//ç”Ÿæˆåœ°é›·
 function createMines() {
-    var oMines = document.getElementById('mines');
+    oMines = document.getElementById('mines');
+    oAllMines = oMines.getElementsByTagName('div');
     var str = '';
-    var aMines = [];
     var indexNum = 0;
+
     for (var i=0; i<colNum; i++) {
         for (var j=0; j<rowNum; j++) {
             str += '<div style="width:40px; height:40px; background:rgb(233,236,239) '+ (-j*42) +'px '+ (-i*42) +'px; position:absolute; top:'+ i*42 +'px; left:'+ j*42 +'px;"></div>';
-            aMines.push( {'x':i,'y':j,'index':indexNum,'isMine':false});
+            //é›·ä¿¡æ¯æ•°ç»„ å­˜æ”¾ x,yè½´ï¼Œç´¢å¼•å€¼ï¼Œæ˜¯å¦æ˜¯é›·
+            aMines.push( {'x':i,'y':j,'index':indexNum,'isMine':false,'setMine':0});
+            //åæ ‡json
+            aPoints[i+''+j] = indexNum;
             indexNum++;
         }
     }
 
     oMines.innerHTML = str;
-    return aMines;
 }
 
 
-//Ëæ»ú²úÉúÀ×
+//éšæœºäº§ç”Ÿé›·
 function randMines(){
-    var minesTmpNum = minesNum;
-    var oMines = document.getElementById('mines');
-    var oAllMines = oMines.getElementsByTagName('div');
-
+    minesTmpNum = minesNum;
     for(var i=0;i<pointNum;i++){
         var key = Math.floor(Math.random()*pointNum);
         if(!aMines[key]['isMine']&&minesTmpNum>0){
             aMines[key]['isMine'] = true;
             minesTmpNum--;
-            //oAllMines[key].innerHTML = 'À×';
         }
         oAllMines[i]['index'] = i;
     }
-
+    //è®¡ç®—æ‰€æœ‰æ ¼å­å‘¨å›´çš„é›·æ•°
     for(var i=0;i<pointNum;i++){
         aMines[i]['minesNum'] = countSideMines(i);
     }
-    //console.log(aMines);return false;
     for(var i=0;i<pointNum;i++){
         oAllMines[i].onmousedown = function(e){
-            var mouseType = getButton(e);//Êó±ê×óÓÒ¼ü
+            var mouseType = getButton(e);//é¼ æ ‡å·¦å³é”®
             if(mouseType == 0||mouseType == 1){
                 if(aMines[this.index]['isMine']){
-                    alert('Äã²Èµ½À×À²£¡');
+                    alert('ä½ è¸©åˆ°é›·å•¦ï¼');
                     gameOver();
                     return false;
                 }else{
                     afterClick(this,aMines[this.index]['minesNum']);
                     aMines[this.index]['isRead'] = true;
-                    if(aMines[this.index]['minesNum']<2){
-                        sweepAround(this.index);
+                    //å¦‚æœå‘¨å›´æ²¡æœ‰é›· å°±å±•å¼€ä¸€ç‰‡åŒºåŸŸ
+                    if(aMines[this.index]['minesNum']==0){
+                        //éœ€è¦ç‚¹å¼€çš„åæ ‡
+                        var x = parseInt(aMines[this.index]['x']);
+                        var y = parseInt(aMines[this.index]['y']);
+                        openAreaPoint(x,y);
                     }
-                    //¼ì²éÊÇ·ñÕÒ³öËùÓĞÀ×Çø
+                    //æ£€æŸ¥æ˜¯å¦æ‰¾å‡ºæ‰€æœ‰åœ°é›·
                     checkResult();
                 }
             }else if(mouseType == 2){
-                if(this.innerHTML == '?'){
+                if(aMines[this.index]['setMine'] == -2){
                     this.innerHTML = "";
-                }else if(this.innerHTML == '!'){
+                    aMines[this.index]['setMine'] = 0;
+                    this.style.className = '';
+                }else if(aMines[this.index]['setMine'] == true){
                     this.innerHTML = "?";
-                }else{
-                    this.innerHTML = "!";
+                    this.style.className = '';
+                    leaveNum++;
+                    aMines[this.index]['setMine'] = -2;
+                }else if(aMines[this.index]['setMine'] == 0){
+                    this.innerHTML = "<img style='margin: 1px;opacity: 0.6' src='images/isminer.png' width='38' height='38'>";
+                    this.className = 'isMine';
+                    leaveNum--;
+                    aMines[this.index]['setMine'] = true;
                 }
+                if(leaveNum>=0&&leaveNum<=minesNum){
+                    oNum.innerHTML = leaveNum;
+                }
+                //æ£€æŸ¥æ˜¯å¦æ‰¾å‡ºæ‰€æœ‰é›·åŒº
+                checkResult();
             }
 
         }
     }
 }
 
-//¼ÆËãµ±Ç°µã»÷¿éÖÜÎ§µÄÀ×¸öÊı
+//è®¡ç®—å½“å‰ç‚¹å‡»å—å‘¨å›´çš„é›·ä¸ªæ•°
 function countSideMines(index){
     var aroundMinesNum = 0;
     var x = parseInt(aMines[index]['x']);
     var y = parseInt(aMines[index]['y']);
+    var aArounds = getAreaPoint(x,y);
+    for(var i=0;i<aArounds.length;i++){
+        if(aArounds[i]['x']>=0&&aArounds[i]['y']>=0){
+            var index = aPoints[aArounds[i]['x']+''+aArounds[i]['y']];
+            if(index>=0){
+                if(aMines[index]['isMine']){
+                aroundMinesNum++;
+                }
+            }
+        }
+    }
+
+    return aroundMinesNum;
+
+}
+
+//ç‚¹å‡»ä¹‹åçš„æ•ˆæœ
+function afterClick(obj,num){
+    obj.onmousedown = '';
+    //obj.style.opacity = 0.3;
+    //changeOpacity(obj);
+    obj.style.backgroundColor = 'rgb(250,245,252)';
+    if(num>0){
+        obj.innerHTML = num;
+    }else{
+        obj.innerHTML = '';
+    }
+
+}
+
+//æ¸å˜
+function changeOpacity(obj){
+    obj.timer = setInterval(function(){
+        if(obj.style.opacity<=1){
+            obj.style.opacity += 0.02;
+        }else{
+            clearInterval(obj.timer);
+        }
+    },5);
+}
+
+//è·å–é¼ æ ‡ç‚¹å‡»å·¦å³é”®
+function getButton(e){
+    if( e ){
+        return e.button;
+    }else if( window.event ){
+        switch( window.event.button ){
+            case 1 : return 0;             // è¿”å›é¼ æ ‡å·¦é”®çš„å€¼
+            case 4 : return 1;             // è¿”å›é¼ æ ‡ä¸­é”®çš„å€¼
+            case 2 : return 2;             // è¿”å›é¼ æ ‡å³é”®çš„å€¼
+            case 0 : return 2;             // è¿”å›é¼ æ ‡å³é”®çš„å€¼ ä¸»è¦æ˜¯360æµè§ˆå™¨ä¼šè¿”å›äº† åœ¨IEæµè§ˆå™¨ä¸­
+        };
+    };
+};
+
+
+//æ¸¸æˆç»“æŸ
+function gameOver(){
+    clearInterval(timer);
+    for(var i=0;i<pointNum;i++){
+        //é—®é¢˜ è¿™é‡Œè¦æ¸…é™¤ç‚¹å‡»äº‹ä»¶  è¿™æ ·å†™æ²¡ç”¨ï¼Ÿ
+        oAllMines[i].onmousedown = function(){};
+        if(aMines[i]['isMine']){
+            //oAllMines[i].innerHTML = 'é›·';
+            oAllMines[i].innerHTML = "<img style='margin: 1px' src='images/isminer.png' width='38' height='38'>";
+        }else{
+            oAllMines[i].innerHTML = '';
+            oAllMines[i].style.backgroundColor = 'rgb(250,245,252)' ;
+        }
+    }
+}
+
+
+//è·å–å‘¨å›´8ä¸ªåŒºåŸŸ
+function  getAreaPoint(x,y){
     var aArounds = [];
     aArounds.push({'x':x,'y':y+1});
     aArounds.push({'x':x,'y':y-1});
@@ -115,100 +213,54 @@ function countSideMines(index){
     aArounds.push({'x':x+1,'y':y});
     aArounds.push({'x':x+1,'y':y-1});
     aArounds.push({'x':x+1,'y':y+1});
-    for(var i=0;i<pointNum;i++){
-        for(var j=0;j<aArounds.length;j++){
-            var xy = aArounds[j];
-            if(aMines[i]['x']==xy['x']&&aMines[i]['y']==xy['y']&&aMines[i]['isMine']){
-                aroundMinesNum++;
+    return aArounds;
+}
+
+
+//ç‚¹å¼€ä¸€ç‰‡åŒºåŸŸ
+function openAreaPoint(x,y){
+    var aArounds = getAreaPoint(x,y);
+    for(var i=0;i<aArounds.length;i++){
+        var index = aPoints[aArounds[i]['x']+''+aArounds[i]['y']];
+        if(index>=0){
+            if(!aMines[index]['isMine']){
+                //å¦‚æœå‘¨å›´æ²¡æœ‰é›· å¹¶ä¸”æ²¡æœ‰ç¿»å¼€è¿‡ å°±é€’å½’è°ƒç”¨ ç»§ç»­å±•å¼€åŒºåŸŸ
+                if(aMines[index]['minesNum']==0&&!aMines[index]['isRead']){
+                    afterClick(oAllMines[index],aMines[index]['minesNum']);
+                    aMines[index]['isRead'] = true;
+                    openAreaPoint(aArounds[i]['x'],aArounds[i]['y']);
+                }else{
+                    afterClick(oAllMines[index],aMines[index]['minesNum']);
+                    aMines[index]['isRead'] = true;
+                }
             }
         }
     }
-
-    return aroundMinesNum;
-
 }
 
-
-//µã¿ªÒ»Æ¬ÇøÓò
-function sweepAround(index){
-    var oMines = document.getElementById('mines');
-    var oAllMines = oMines.getElementsByTagName('div');
-    //µÃµ½µ±Ç°µã»÷¿éµÄ×ø±ê
-    var x = parseInt(aMines[index]['x']);
-    var y = parseInt(aMines[index]['y']);
-    var aArounds = [];
-    //ĞèÒªµã¿ªµÄ×ø±ê
-    //ÎÊÌâ Ã»×öµ½ÏñwindowsÀïÃæÄÇÖÖµã¿ª³öÏÖÒ»Æ¬¿éÖÜÎ§À×ÊıÊÇ0µÄĞ§¹û ²»ÍêÃÀ ÇóºÃ°ì·¨
-    for(var i=0;i<2;i++){
-        for(var j=0;j<2;j++){
-            aArounds.push({'x':x+i,'y':y+j});
-            aArounds.push({'x':x-i,'y':y-j});
-            aArounds.push({'x':x,'y':y-j});
-            aArounds.push({'x':x,'y':y+j});
-        }
-    }
-    for(var i=0;i<pointNum;i++){
-        for(var j=0;j<aArounds.length;j++){
-            var xy = aArounds[j];
-            if(aMines[i]['x']==xy['x']&&aMines[i]['y']==xy['y']&&(!aMines[i]['isMine'])){
-                afterClick(oAllMines[i],aMines[i]['minesNum']);
-                aMines[i]['isRead'] = true;
-            }
-        }
-    }
-
-}
-
-function afterClick(obj,num){
-    obj.onmousedown = '';
-    obj.style.backgroundColor = 'rgb(250,245,252)';
-    if(num>0){
-        obj.innerHTML = num;
-    }
-
-}
-
-//»ñÈ¡Êó±êµã»÷×óÓÒ¼ü
-function getButton(e){
-    if( e ){
-        return e.button;
-    }else if( window.event ){
-        switch( window.event.button ){
-            case 1 : return 0;             // ·µ»ØÊó±ê×ó¼üµÄÖµ
-            case 4 : return 1;             // ·µ»ØÊó±êÖĞ¼üµÄÖµ
-            case 2 : return 2;             // ·µ»ØÊó±êÓÒ¼üµÄÖµ
-            case 0 : return 2;             // ·µ»ØÊó±êÓÒ¼üµÄÖµ Ö÷ÒªÊÇ360ä¯ÀÀÆ÷»á·µ»ØÁË ÔÚIEä¯ÀÀÆ÷ÖĞ
-        };
-    };
-};
-
-
-//ÓÎÏ·½áÊø
-function gameOver(){
-    var oMines = document.getElementById('mines');
-    var oAllMines = oMines.getElementsByTagName('div');
-    for(var i=0;i<pointNum;i++){
-        //ÎÊÌâ ÕâÀïÒªÇå³ıµã»÷ÊÂ¼ş  ÕâÑùĞ´Ã»ÓÃ£¿
-        oAllMines[i].onmousedown = function(){};
-        if(aMines[i]['isMine']){
-            oAllMines[i].innerHTML = 'À×';
-        }else{
-            oAllMines[i].style.backgroundColor = 'rgb(250,245,252)' ;
-        }
-    }
-}
-
-
+//æ£€æŸ¥æ¸¸æˆç»“æœ
 function checkResult(){
     var isWin = true;
     for(var i=0;i<pointNum;i++){
-        if(!aMines[i]['isRead']&&!aMines[i]['isMine']){
+        if(!aMines[i]['isRead']&&(aMines[i]['setMine']!=true)){
             isWin = false;
         }
     }
     if(isWin){
-        alert('ÄãÓ®À²£¡');
+        alert('ä½ èµ¢å•¦ï¼');
         gameOver();
     }
+}
 
+//æ—¶é—´
+function timeCounter(){
+    clearInterval(timer);
+    var time = document.getElementById('time');
+    var seconds = 0;
+    timer = setInterval(function(){
+        if(seconds>9999){
+            gameOver();
+        }
+        time.innerHTML = seconds++;
+    },1000)
 }
